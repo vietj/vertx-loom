@@ -1,7 +1,9 @@
 package io.vertx;
 
+import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServer;
+import io.vertx.core.impl.ContextInternal;
 import io.vertx.loom.core.VertxLoom;
 
 public class Main {
@@ -16,10 +18,20 @@ public class Main {
       HttpServer server = vertx.createHttpServer();
       server.requestHandler(req -> {
         System.out.println("Begin HTTP request on " + Thread.currentThread());
-        vertx.setTimer(200, id -> {
-          System.out.println("End HTTP request on " + Thread.currentThread());
-          req.response().end("Hello Loom");
-        });
+        Promise<String> promise = ((ContextInternal)vertx.getOrCreateContext()).promise();
+
+        // Async stuff
+        new Thread(() -> {
+          try {
+            Thread.sleep(1000);
+          } catch (InterruptedException e) {
+            e.printStackTrace();
+          }
+          promise.complete("Hello Loom");
+        }).start();
+        String result = vertxLoom.await(promise.future());
+        System.out.println("End HTTP request on " + Thread.currentThread());
+        req.response().end(result);
       });
       server.listen(8080, "localhost").onComplete(ar -> {
         if (ar.succeeded()) {

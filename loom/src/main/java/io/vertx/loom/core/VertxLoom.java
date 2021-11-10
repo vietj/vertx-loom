@@ -1,7 +1,10 @@
 package io.vertx.loom.core;
 
+import io.vertx.core.Future;
 import io.vertx.core.Vertx;
+import io.vertx.core.VertxException;
 import io.vertx.core.impl.LoomContext;
+import io.vertx.core.impl.future.FutureInternal;
 
 import java.util.concurrent.ThreadFactory;
 
@@ -20,5 +23,13 @@ public class VertxLoom {
     context.runOnContext(v -> {
       runnable.run();
     });
+  }
+
+  public <T> T await(Future<T> future) {
+    try {
+      return ((FutureInternal<T>)future).await();
+    } catch (Exception e) {
+      throw new VertxException(e);
+    }
   }
 }

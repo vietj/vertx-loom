@@ -17,7 +17,6 @@ import io.vertx.core.*;
 import io.vertx.core.impl.future.PromiseInternal;
 import io.vertx.core.spi.tracing.VertxTracer;
 
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 /**
@@ -29,8 +28,7 @@ import java.util.concurrent.ConcurrentMap;
  */
 public interface ContextInternal extends Context {
 
-  // Not ideal but for now will work well enough
-  ConcurrentMap<Thread, ContextInternal> virtualContexts = new ConcurrentHashMap<>();
+  ThreadLocal<ContextInternal> local = new ThreadLocal<>();
 
   /**
    * @return the current context
@@ -40,7 +38,7 @@ public interface ContextInternal extends Context {
     if (current instanceof VertxThread) {
       return ((VertxThread) current).context();
     } else {
-      return virtualContexts.get(current);
+      return local.get();
     }
   }
 

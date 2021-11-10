@@ -20,12 +20,9 @@ public class LoomContext extends ContextImpl {
   public static LoomContext create(Vertx vertx, EventLoop nettyEventLoop, ThreadFactory threadFactory) {
     VertxImpl _vertx = (VertxImpl) vertx;
     LoomContext[] ref = new LoomContext[1];
-    ExecutorService exec = Executors.newSingleThreadExecutor(r -> {
-      Thread thread = threadFactory.newThread(r);
-      ContextInternal.virtualContexts.put(thread, ref[0]);
-      return thread;
-    });
+    ExecutorService exec = Executors.newSingleThreadExecutor(threadFactory);
     LoomContext context = new LoomContext(_vertx, nettyEventLoop, _vertx.internalWorkerPool, new WorkerPool(exec, null), null, _vertx.closeFuture(), Thread.currentThread().getContextClassLoader(), true, threadFactory);
+    exec.submit(() -> ContextInternal.local.set(context));
     ref[0] = context;
     return context;
   }
