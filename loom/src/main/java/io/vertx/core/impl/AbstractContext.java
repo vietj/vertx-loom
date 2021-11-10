@@ -10,19 +10,14 @@
  */
 package io.vertx.core.impl;
 
-import java.util.List;
-
-import io.vertx.core.AsyncResult;
-import io.vertx.core.Future;
-import io.vertx.core.Handler;
-import io.vertx.core.Promise;
-import io.vertx.core.Vertx;
+import io.vertx.core.*;
 import io.vertx.core.impl.future.FailedFuture;
 import io.vertx.core.impl.future.PromiseImpl;
 import io.vertx.core.impl.future.PromiseInternal;
 import io.vertx.core.impl.future.SucceededFuture;
 import io.vertx.core.impl.launcher.VertxCommandLauncher;
-import io.vertx.loom.core.VirtualVertxThreadImpl;
+
+import java.util.List;
 
 /**
  * A context implementation that does not hold any specific state.
@@ -69,35 +64,28 @@ abstract class AbstractContext implements ContextInternal {
   }
 
   public final ContextInternal beginDispatch() {
-    ContextInternal prev;
-    // PATCH
-    Thread t = Thread.currentThread();;
-    VertxThread th = null;
-    if (t.isVirtual()) {
-      th = VirtualVertxThreadImpl.getVertexThread();
+    Thread thread = Thread.currentThread();
+    if (thread instanceof VertxThread) {
+      VertxThread th = (VertxThread) thread;
+      ContextInternal prev = th.beginEmission(this);
+      if (!disableTCCL) {
+        th.setContextClassLoader(classLoader());
+      }
+      return prev;
     } else {
-      th = (VertxThread) t;
+      return this;
     }
-    prev = th.beginEmission(this);
-    if (!disableTCCL) {
-      th.setContextClassLoader(classLoader());
-    }
-    return prev;
   }
 
   public final void endDispatch(ContextInternal previous) {
-    // PATCH
-    Thread t = Thread.currentThread();;
-    VertxThread th = null;
-    if (t.isVirtual()) {
-      th = VirtualVertxThreadImpl.getVertexThread();
-    } else {
-      th = (VertxThread) t;
+    Thread thread = Thread.currentThread();
+    if (thread instanceof VertxThread) {
+      VertxThread th = (VertxThread) thread;
+      if (!disableTCCL) {
+        th.setContextClassLoader(previous != null ? previous.classLoader() : null);
+      }
+      th.endEmission(previous);
     }
-    if (!disableTCCL) {
-      th.setContextClassLoader(previous != null ? previous.classLoader() : null);
-    }
-    th.endEmission(previous);
   }
 
   @Override

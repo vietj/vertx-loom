@@ -1,14 +1,3 @@
-/*
- * Copyright (c) 2011-2019 Contributors to the Eclipse Foundation
- *
- * This program and the accompanying materials are made available under the
- * terms of the Eclipse Public License 2.0 which is available at
- * http://www.eclipse.org/legal/epl-2.0, or the Apache License, Version 2.0
- * which is available at https://www.apache.org/licenses/LICENSE-2.0.
- *
- * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
- */
-
 package io.vertx.core.impl;
 
 import io.netty.channel.EventLoop;
@@ -18,13 +7,11 @@ import io.vertx.core.impl.logging.LoggerFactory;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.spi.metrics.PoolMetrics;
 import io.vertx.core.spi.tracing.VertxTracer;
-import io.vertx.loom.core.VertxVirtualThreadFactory;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.TimeUnit;
 
 /**
  * @author <a href="http://tfox.org">Tim Fox</a>
@@ -32,12 +19,10 @@ import java.util.concurrent.TimeUnit;
 abstract class ContextImpl extends AbstractContext {
 
   /**
-   * Execute the {@code task} disabling the thread-local association for the duration of the execution. {@link Vertx#currentContext()} will return {@code null},
-   * 
-   * @param task
-   *          the task to execute
-   * @throws IllegalStateException
-   *           if the current thread is not a Vertx thread
+   * Execute the {@code task} disabling the thread-local association for the duration
+   * of the execution. {@link Vertx#currentContext()} will return {@code null},
+   * @param task the task to execute
+   * @throws IllegalStateException if the current thread is not a Vertx thread
    */
   static void executeIsolated(Handler<Void> task) {
     Thread currentThread = Thread.currentThread();
@@ -59,8 +44,6 @@ abstract class ContextImpl extends AbstractContext {
   private static final String DISABLE_TIMINGS_PROP_NAME = "vertx.disableContextTimings";
   static final boolean DISABLE_TIMINGS = Boolean.getBoolean(DISABLE_TIMINGS_PROP_NAME);
 
-  static VertxVirtualThreadFactory factory = new VertxVirtualThreadFactory();
-
   protected final VertxInternal owner;
   protected final JsonObject config;
   private final Deployment deployment;
@@ -76,13 +59,13 @@ abstract class ContextImpl extends AbstractContext {
   final TaskQueue orderedTasks;
 
   ContextImpl(VertxInternal vertx,
-    EventLoop eventLoop,
-    WorkerPool internalBlockingPool,
-    WorkerPool workerPool,
-    Deployment deployment,
-    CloseFuture closeFuture,
-    ClassLoader tccl,
-    boolean disableTCCL) {
+              EventLoop eventLoop,
+              WorkerPool internalBlockingPool,
+              WorkerPool workerPool,
+              Deployment deployment,
+              CloseFuture closeFuture,
+              ClassLoader tccl,
+              boolean disableTCCL) {
     super(disableTCCL);
     this.deployment = deployment;
     this.config = deployment != null ? deployment.config() : new JsonObject();
@@ -149,7 +132,7 @@ abstract class ContextImpl extends AbstractContext {
   }
 
   static <T> Future<T> executeBlocking(ContextInternal context, Handler<Promise<T>> blockingCodeHandler,
-    WorkerPool workerPool, TaskQueue queue) {
+                                       WorkerPool workerPool, TaskQueue queue) {
     PoolMetrics metrics = workerPool.metrics();
     Object queueMetric = metrics != null ? metrics.submitted() : null;
     Promise<T> promise = context.promise();
@@ -171,16 +154,11 @@ abstract class ContextImpl extends AbstractContext {
           metrics.end(execMetric, fut.succeeded());
         }
       };
-      boolean useLoom = true;
-      if (useLoom) {
-        factory.newVertxThread(command, "vert.x-eventloop-thread", false, 200, TimeUnit.SECONDS).start();
+      Executor exec = workerPool.executor();
+      if (queue != null) {
+        queue.execute(command, exec);
       } else {
-        Executor exec = workerPool.executor();
-        if (queue != null) {
-          queue.execute(command, exec);
-        } else {
-          exec.execute(command);
-        }
+        exec.execute(command);
       }
     } catch (RejectedExecutionException e) {
       // Pool is already shut down
@@ -288,7 +266,7 @@ abstract class ContextImpl extends AbstractContext {
   abstract <T> void emit(AbstractContext ctx, T argument, Handler<T> task);
 
   @Override
-  public final ContextInternal duplicate() {
+  public ContextInternal duplicate() {
     return new DuplicatedContext(this);
   }
 }

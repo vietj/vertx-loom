@@ -14,7 +14,6 @@ import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 import io.vertx.core.impl.ContextInternal;
-import io.vertx.lang.loom.rxjava3.LoomContextScheduler;
 
 public final class Async {
 
@@ -51,7 +50,7 @@ public final class Async {
 
     return promise.future();
   }
-  
+
   public static <A> List<A> await(Observable<A> obs) {
     Coroutine coroutine = Objects.requireNonNull(AWAIT_CONTEXT.get(), "Must call await from inside an async scope");
     return coroutine.await(obs);
@@ -116,10 +115,6 @@ public final class Async {
     AsyncContext asyncContext = new AsyncContext((ContextInternal)vertxContext, vtFactory);
     ASYNC_CONTEXT.set(asyncContext);
     return asyncContext;
-  }
-
-  public static Scheduler scheduler() {
-    return new LoomContextScheduler();
   }
 
 }
