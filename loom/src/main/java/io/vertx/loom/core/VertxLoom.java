@@ -1,5 +1,6 @@
 package io.vertx.loom.core;
 
+import io.netty.channel.EventLoop;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.VertxException;
@@ -11,15 +12,15 @@ import java.util.concurrent.ThreadFactory;
 public class VertxLoom {
 
   private final Vertx vertx;
-  private final ThreadFactory threadFactory;
 
   public VertxLoom(Vertx vertx) {
     this.vertx = vertx;
-    this.threadFactory = Thread.ofVirtual().name("test-foo").factory();
   }
 
   public void virtual(Runnable runnable) {
-    LoomContext context = LoomContext.create(vertx, vertx.nettyEventLoopGroup().next(), threadFactory);
+    EventLoop eventLoop = vertx.nettyEventLoopGroup().next();
+    ThreadFactory threadFactory = Thread.ofVirtual().name("vertx-loom").scheduler(eventLoop).factory();
+    LoomContext context = LoomContext.create(vertx, eventLoop, threadFactory);
     context.runOnContext(v -> {
       runnable.run();
     });
