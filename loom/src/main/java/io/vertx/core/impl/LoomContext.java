@@ -46,7 +46,7 @@ public class LoomContext extends ContextImpl {
   @Override
   void runOnContext(AbstractContext ctx, Handler<Void> action) {
     try {
-      run(ctx, orderedTasks, null, action);
+      run(ctx, null, action);
     } catch (RejectedExecutionException ignore) {
       // Pool is already shut down
     }
@@ -60,12 +60,12 @@ public class LoomContext extends ContextImpl {
    */
   @Override
   <T> void execute(AbstractContext ctx, T argument, Handler<T> task) {
-    execute(orderedTasks, argument, task);
+    execute2(argument, task);
   }
 
   @Override
   <T> void emit(AbstractContext ctx, T argument, Handler<T> task) {
-    execute(orderedTasks, argument, arg -> {
+    execute2(argument, arg -> {
       ctx.dispatch(arg, task);
     });
   }
@@ -80,11 +80,11 @@ public class LoomContext extends ContextImpl {
     return false;
   }
 
-  private <T> void run(ContextInternal ctx, TaskQueue queue, T value, Handler<T> task) {
+  private <T> void run(ContextInternal ctx, T value, Handler<T> task) {
     Objects.requireNonNull(task, "Task handler must not be null");
     PoolMetrics metrics = workerPool.metrics();
     Object queueMetric = metrics != null ? metrics.submitted() : null;
-    queue.execute(() -> {
+    workerPool.executor().execute(() -> {
       Object execMetric = null;
       if (metrics != null) {
         execMetric = metrics.begin(queueMetric);
@@ -96,16 +96,16 @@ public class LoomContext extends ContextImpl {
           metrics.end(execMetric, true);
         }
       }
-    }, workerPool.executor());
+    });
   }
 
-  private <T> void execute(TaskQueue queue, T argument, Handler<T> task) {
+  private <T> void execute2(T argument, Handler<T> task) {
     if (Context.isOnWorkerThread()) {
       task.handle(argument);
     } else {
       PoolMetrics metrics = workerPool.metrics();
       Object queueMetric = metrics != null ? metrics.submitted() : null;
-      queue.execute(() -> {
+      workerPool.executor().execute(() -> {
         Object execMetric = null;
         if (metrics != null) {
           execMetric = metrics.begin(queueMetric);
@@ -117,7 +117,7 @@ public class LoomContext extends ContextImpl {
             metrics.end(execMetric, true);
           }
         }
-      }, workerPool.executor());
+      });
     }
   }
 
