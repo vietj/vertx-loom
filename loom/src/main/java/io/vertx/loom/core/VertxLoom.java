@@ -19,7 +19,7 @@ public class VertxLoom {
 
   public void virtual(Runnable runnable) {
     EventLoop eventLoop = vertx.nettyEventLoopGroup().next();
-    ThreadFactory threadFactory = Thread.ofVirtual().name("vertx-loom").scheduler(eventLoop).factory();
+    ThreadFactory threadFactory = Thread.ofVirtual().name("vertx-loom").factory();
     LoomContext context = LoomContext.create(vertx, eventLoop, threadFactory);
     context.runOnContext(v -> {
       runnable.run();

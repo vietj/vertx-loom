@@ -109,7 +109,7 @@ public final class Async {
     Executor contextThreadExecutor = command -> {
       vertxContext.runOnContext(v -> command.run());
     };
-    ThreadFactory vtFactory = Thread.ofVirtual().name("vert.x-virtual-thread-", 0).scheduler(contextThreadExecutor)
+    ThreadFactory vtFactory = Thread.ofVirtual().name("vert.x-virtual-thread-", 0)
       .factory();
 
     AsyncContext asyncContext = new AsyncContext((ContextInternal)vertxContext, vtFactory);
