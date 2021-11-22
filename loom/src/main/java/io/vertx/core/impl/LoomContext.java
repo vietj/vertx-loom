@@ -4,13 +4,17 @@ import io.netty.channel.EventLoop;
 import io.vertx.core.Context;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
-import io.vertx.core.spi.metrics.PoolMetrics;
+import io.vertx.core.VertxException;
+import io.vertx.core.impl.future.FutureInternal;
+import io.vertx.core.impl.future.Listener;
 
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * A fork a WorkerContext with a couple of changes.
@@ -82,20 +86,8 @@ public class LoomContext extends ContextImpl {
 
   private <T> void run(ContextInternal ctx, T value, Handler<T> task) {
     Objects.requireNonNull(task, "Task handler must not be null");
-    PoolMetrics metrics = workerPool.metrics();
-    Object queueMetric = metrics != null ? metrics.submitted() : null;
     workerPool.executor().execute(() -> {
-      Object execMetric = null;
-      if (metrics != null) {
-        execMetric = metrics.begin(queueMetric);
-      }
-      try {
-        ctx.dispatch(value, task);
-      } finally {
-        if (metrics != null) {
-          metrics.end(execMetric, true);
-        }
-      }
+      ctx.dispatch(value, task);
     });
   }
 
@@ -103,20 +95,8 @@ public class LoomContext extends ContextImpl {
     if (Context.isOnWorkerThread()) {
       task.handle(argument);
     } else {
-      PoolMetrics metrics = workerPool.metrics();
-      Object queueMetric = metrics != null ? metrics.submitted() : null;
       workerPool.executor().execute(() -> {
-        Object execMetric = null;
-        if (metrics != null) {
-          execMetric = metrics.begin(queueMetric);
-        }
-        try {
-          task.handle(argument);
-        } finally {
-          if (metrics != null) {
-            metrics.end(execMetric, true);
-          }
-        }
+        task.handle(argument);
       });
     }
   }
@@ -128,6 +108,48 @@ public class LoomContext extends ContextImpl {
 
   @Override
   public ContextInternal duplicate() {
+    // This is fine as we are running on event-loop
     return create(owner, nettyEventLoop(), threadFactory);
+  }
+
+  public <T> T await(FutureInternal<T> future) {
+    ReentrantLock lock = new ReentrantLock();
+    Condition cond = lock.newCondition();
+    lock.lock();
+    try {
+      future.addListener(new Listener<T>() {
+        @Override
+        public void emitSuccess(ContextInternal context, T value) {
+          lock.lock();
+          try {
+            cond.signal();
+          } finally {
+            lock.unlock();
+          }
+        }
+        @Override
+        public void emitFailure(ContextInternal context, Throwable failure) {
+          lock.lock();
+          try {
+            cond.signal();
+          } finally {
+            lock.unlock();
+          }
+        }
+      });
+      try {
+        cond.await();
+      } catch (InterruptedException e) {
+        throw new VertxException(e);
+      }
+      if (future.succeeded()) {
+        return future.result();
+      } else {
+        // ExecutionException
+        throw new VertxException(future.cause());
+      }
+    } finally {
+      lock.unlock();
+    }
   }
 }

@@ -6,6 +6,9 @@ import io.vertx.core.http.HttpServer;
 import io.vertx.core.impl.ContextInternal;
 import io.vertx.loom.core.VertxLoom;
 
+/**
+ * Run this with {@code --enable-preview --add-opens java.base/java.lang=ALL-UNNAMED}.
+ */
 public class Main {
 
   public static void main(String[] args) throws Exception {

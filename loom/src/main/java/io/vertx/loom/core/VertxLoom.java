@@ -7,6 +7,7 @@ import io.vertx.core.VertxException;
 import io.vertx.core.impl.LoomContext;
 import io.vertx.core.impl.future.FutureInternal;
 
+import java.lang.reflect.Constructor;
 import java.util.concurrent.ThreadFactory;
 
 public class VertxLoom {
@@ -19,7 +20,19 @@ public class VertxLoom {
 
   public void virtual(Runnable runnable) {
     EventLoop eventLoop = vertx.nettyEventLoopGroup().next();
-    ThreadFactory threadFactory = Thread.ofVirtual().name("vertx-loom").factory();
+
+    // Use this until the thread factory can be specified
+    ThreadFactory threadFactory;
+    try{
+      var vtf = Class.forName("java.lang.ThreadBuilders").getDeclaredClasses()[0];
+      Constructor constructor = vtf.getDeclaredConstructors()[0];
+      constructor.setAccessible(true);
+      threadFactory = (ThreadFactory) constructor.newInstance(
+        new Object[] { eventLoop, "vertx-loom", 0, 0, null });
+    } catch (Exception e) {
+      throw new VertxException(e);
+    }
+
     LoomContext context = LoomContext.create(vertx, eventLoop, threadFactory);
     context.runOnContext(v -> {
       runnable.run();
@@ -27,10 +40,10 @@ public class VertxLoom {
   }
 
   public <T> T await(Future<T> future) {
-    try {
-      return ((FutureInternal<T>)future).await();
-    } catch (Exception e) {
-      throw new VertxException(e);
+    LoomContext ctx = (LoomContext) vertx.getOrCreateContext();
+    if (ctx == null) {
+      throw new IllegalStateException();
     }
+    return ctx.await((FutureInternal<T>) future);
   }
 }
