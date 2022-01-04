@@ -136,6 +136,14 @@ public class LoomContext extends ContextImpl {
             lock.unlock();
           }
         }
+        @Override
+        public void onSuccess(T value) {
+          throw new UnsupportedOperationException();
+        }
+        @Override
+        public void onFailure(Throwable failure) {
+          throw new UnsupportedOperationException();
+        }
       });
       try {
         cond.await();
