@@ -101,8 +101,9 @@ public class LoomContext extends ContextImpl {
   }
 
   @Override
-  protected boolean inThread() {
-    return Context.isOnWorkerThread();
+  public boolean inThread() {
+    // Find something better
+    return Thread.currentThread().isVirtual();
   }
 
   @Override
