@@ -24,10 +24,9 @@ public class LoomContext extends ContextImpl {
   public static LoomContext create(Vertx vertx, EventLoop nettyEventLoop, ThreadFactory threadFactory) {
     VertxImpl _vertx = (VertxImpl) vertx;
     LoomContext[] ref = new LoomContext[1];
-    // Use a single carrier thread for virtual threads 
+    // Use a single carrier thread for virtual threads
     ExecutorService exec = Executors.newSingleThreadExecutor(threadFactory);
-    LoomContext context = new LoomContext(_vertx, nettyEventLoop, _vertx.internalWorkerPool, new WorkerPool(exec, null), null, _vertx.closeFuture(), Thread.currentThread().getContextClassLoader(), true, threadFactory);
-    exec.submit(() -> ContextInternal.local.set(context));
+    LoomContext context = new LoomContext(_vertx, nettyEventLoop, _vertx.internalWorkerPool, new WorkerPool(exec, null), null, _vertx.closeFuture(), null, threadFactory);
     ref[0] = context;
     return context;
   }
@@ -41,15 +40,14 @@ public class LoomContext extends ContextImpl {
               Deployment deployment,
               CloseFuture closeFuture,
               ClassLoader tccl,
-              boolean disableTCCL,
               ThreadFactory threadFactory) {
-    super(vertx, eventLoop, internalBlockingPool, workerPool, deployment, closeFuture, tccl, disableTCCL);
+    super(vertx, eventLoop, internalBlockingPool, workerPool, deployment, closeFuture, tccl);
 
     this.threadFactory = threadFactory;
   }
 
   @Override
-  void runOnContext(AbstractContext ctx, Handler<Void> action) {
+  protected void runOnContext(AbstractContext ctx, Handler<Void> action) {
     try {
       run(ctx, null, action);
     } catch (RejectedExecutionException ignore) {
@@ -76,7 +74,7 @@ public class LoomContext extends ContextImpl {
   }
 
   @Override
-  <T> void execute(AbstractContext ctx, Runnable task) {
+  protected void execute(AbstractContext ctx, Runnable task) {
     execute(this, task, Runnable::run);
   }
 
@@ -103,7 +101,7 @@ public class LoomContext extends ContextImpl {
   }
 
   @Override
-  boolean inThread() {
+  protected boolean inThread() {
     return Context.isOnWorkerThread();
   }
 
