@@ -3,11 +3,9 @@ package io.vertx.loom.core;
 import io.netty.channel.EventLoop;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
-import io.vertx.core.VertxException;
 import io.vertx.core.impl.LoomContext;
 import io.vertx.core.impl.future.FutureInternal;
 
-import java.lang.reflect.Constructor;
 import java.util.concurrent.ThreadFactory;
 
 public class VertxLoom {
@@ -20,19 +18,7 @@ public class VertxLoom {
 
   public void virtual(Runnable runnable) {
     EventLoop eventLoop = vertx.nettyEventLoopGroup().next();
-
-    // Use this until the thread factory can be specified
-    ThreadFactory threadFactory;
-    try{
-      var vtf = Class.forName("java.lang.ThreadBuilders").getDeclaredClasses()[0];
-      Constructor constructor = vtf.getDeclaredConstructors()[0];
-      constructor.setAccessible(true);
-      threadFactory = (ThreadFactory) constructor.newInstance(
-        new Object[] { eventLoop, "vertx-loom", 0, 0, null });
-    } catch (Exception e) {
-      throw new VertxException(e);
-    }
-
+    ThreadFactory threadFactory = Thread.ofVirtual().name("vert.x-virtual-thread-", 0).factory();
     LoomContext context = LoomContext.create(vertx, eventLoop, threadFactory);
     context.runOnContext(v -> {
       runnable.run();
