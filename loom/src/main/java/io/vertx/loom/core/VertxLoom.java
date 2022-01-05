@@ -7,6 +7,7 @@ import io.vertx.core.impl.LoomContext;
 import io.vertx.core.impl.future.FutureInternal;
 
 import java.util.concurrent.ThreadFactory;
+import java.util.function.Supplier;
 
 public class VertxLoom {
 
@@ -31,5 +32,13 @@ public class VertxLoom {
       throw new IllegalStateException();
     }
     return ctx.await((FutureInternal<T>) future);
+  }
+
+  public <T> T await(Supplier<Future<T>> supplier) {
+    LoomContext ctx = (LoomContext) vertx.getOrCreateContext();
+    if (ctx == null) {
+      throw new IllegalStateException();
+    }
+    return ctx.await(supplier);
   }
 }
