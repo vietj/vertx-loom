@@ -7,7 +7,6 @@ import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.VertxException;
 import io.vertx.core.impl.future.FutureInternal;
-import io.vertx.core.impl.future.Listener;
 
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -114,32 +113,12 @@ public class LoomContext extends ContextImpl {
     Condition cond = lock.newCondition();
     lock.lock();
     try {
-      future.addListener(new Listener<T>() {
-        @Override
-        public void emitSuccess(ContextInternal context, T value) {
-          lock.lock();
-          try {
-            cond.signal();
-          } finally {
-            lock.unlock();
-          }
-        }
-        @Override
-        public void emitFailure(ContextInternal context, Throwable failure) {
-          lock.lock();
-          try {
-            cond.signal();
-          } finally {
-            lock.unlock();
-          }
-        }
-        @Override
-        public void onSuccess(T value) {
-          throw new UnsupportedOperationException();
-        }
-        @Override
-        public void onFailure(Throwable failure) {
-          throw new UnsupportedOperationException();
+      future.onComplete(ar -> {
+        lock.lock();
+        try {
+          cond.signal();
+        } finally {
+          lock.unlock();
         }
       });
       try {
