@@ -58,6 +58,29 @@ public class LoomContextTest extends VertxTestBase {
   }
 
   @Test
+  public void testAwaitFailure() {
+    Exception cause = new Exception();
+    loom.virtual(() -> {
+      ContextInternal context = (ContextInternal) vertx.getOrCreateContext();
+      PromiseInternal<Object> promise = context.promise();
+      new Thread(() -> {
+        try {
+          Thread.sleep(100);
+        } catch (InterruptedException ignore) {
+        }
+        promise.fail(cause);
+      }).start();
+      try {
+        loom.await(promise.future());
+        fail();
+      } catch (Exception e) {
+        assertSame(cause, e);
+      }
+      testComplete();
+    });
+    await();
+  }
+  @Test
   public void testAwaitCompoundFuture() {
     Object result = new Object();
     loom.virtual(() -> {

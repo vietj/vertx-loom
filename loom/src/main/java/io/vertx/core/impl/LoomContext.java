@@ -2,7 +2,6 @@ package io.vertx.core.impl;
 
 import io.netty.channel.EventLoop;
 import io.vertx.core.Context;
-import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.VertxException;
@@ -15,9 +14,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.Supplier;
 
 /**
  * A fork a WorkerContext with a couple of changes.
@@ -109,55 +105,22 @@ public class LoomContext extends ContextImpl {
   }
 
   public <T> T await(FutureInternal<T> future) {
-    ReentrantLock lock = new ReentrantLock();
-    Condition cond = lock.newCondition();
-    lock.lock();
-    try {
-      future.onComplete(ar -> {
-        lock.lock();
-        try {
-          cond.signal();
-        } finally {
-          lock.unlock();
-        }
-      });
-      try {
-        cond.await();
-      } catch (InterruptedException e) {
-        throw new VertxException(e);
-      }
-      if (future.succeeded()) {
-        return future.result();
-      } else {
-        // ExecutionException
-        throw new VertxException(future.cause());
-      }
-    } finally {
-      lock.unlock();
-    }
-  }
-
-  public <T> T await(Supplier<Future<T>> supplier) {
-    ContextInternal duplicate = duplicate();
     CompletableFuture<T> fut = new CompletableFuture<>();
-    duplicate.runOnContext(v -> {
-      Future<T> future = supplier.get();
-      future.onComplete(ar -> {
-        if (ar.succeeded()) {
-          fut.complete(ar.result());
-        } else {
-          fut.completeExceptionally(ar.cause());
-        }
-      });
+    future.onComplete(ar -> {
+      if (ar.succeeded()) {
+        fut.complete(ar.result());
+      } else {
+        fut.completeExceptionally(ar.cause());
+      }
     });
     try {
       return fut.get();
     } catch (InterruptedException e) {
-      // Handle me
-      throw new UnsupportedOperationException(e);
+      throw new VertxException(e);
     } catch (ExecutionException e) {
       throwAsUnchecked(e.getCause());
-      return null;
+      // Should not reach this
+      throw new UnsupportedOperationException();
     }
   }
 
