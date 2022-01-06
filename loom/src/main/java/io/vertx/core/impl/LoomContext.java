@@ -28,8 +28,7 @@ public class LoomContext extends ContextImpl {
   public static LoomContext create(Vertx vertx, EventLoop nettyEventLoop, ThreadFactory threadFactory) {
     VertxImpl _vertx = (VertxImpl) vertx;
     LoomContext[] ref = new LoomContext[1];
-    // Use a single carrier thread for virtual threads
-    ExecutorService exec = Executors.newSingleThreadExecutor(threadFactory);
+    ExecutorService exec = Executors.newCachedThreadPool(threadFactory);
     LoomContext context = new LoomContext(_vertx, nettyEventLoop, _vertx.internalWorkerPool, new WorkerPool(exec, null), null, _vertx.closeFuture(), null, threadFactory);
     ref[0] = context;
     return context;
@@ -108,12 +107,6 @@ public class LoomContext extends ContextImpl {
   public boolean inThread() {
     // Find something better
     return Thread.currentThread().isVirtual();
-  }
-
-  @Override
-  public ContextInternal duplicate() {
-    // This is fine as we are running on event-loop
-    return create(owner, nettyEventLoop(), threadFactory);
   }
 
   public <T> T await(FutureInternal<T> future) {
