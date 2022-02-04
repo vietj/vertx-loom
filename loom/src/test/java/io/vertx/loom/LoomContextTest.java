@@ -30,7 +30,7 @@ public class LoomContextTest extends VertxTestBase {
       Context context = vertx.getOrCreateContext();
       assertTrue(context instanceof LoomContext);
       context.runOnContext(v -> {
-        assertTrue(thread.isVirtual());
+        assertSame(thread, Thread.currentThread());
         assertSame(context, vertx.getOrCreateContext());
         testComplete();
       });
@@ -42,58 +42,39 @@ public class LoomContextTest extends VertxTestBase {
   public void testAwaitFuture() {
     Object result = new Object();
     loom.virtual(() -> {
-      ContextInternal context = (ContextInternal) vertx.getOrCreateContext();
-      PromiseInternal<Object> promise = context.promise();
-      new Thread(() -> {
-        try {
-          Thread.sleep(100);
-        } catch (InterruptedException ignore) {
-        }
-        promise.complete(result);
-      }).start();
-      assertSame(result, loom.await(promise.future()));
+      assertSame(result, loom.await(() -> {
+        ContextInternal context = (ContextInternal) vertx.getOrCreateContext();
+        PromiseInternal<Object> promise = context.promise();
+        new Thread(() -> {
+          try {
+            Thread.sleep(100);
+          } catch (InterruptedException ignore) {
+          }
+          promise.complete(result);
+        }).start();
+        return promise.future();
+      }));
       testComplete();
     });
     await();
   }
 
   @Test
-  public void testAwaitFailure() {
-    Exception cause = new Exception();
-    loom.virtual(() -> {
-      ContextInternal context = (ContextInternal) vertx.getOrCreateContext();
-      PromiseInternal<Object> promise = context.promise();
-      new Thread(() -> {
-        try {
-          Thread.sleep(100);
-        } catch (InterruptedException ignore) {
-        }
-        promise.fail(cause);
-      }).start();
-      try {
-        loom.await(promise.future());
-        fail();
-      } catch (Exception e) {
-        assertSame(cause, e);
-      }
-      testComplete();
-    });
-    await();
-  }
-  @Test
   public void testAwaitCompoundFuture() {
     Object result = new Object();
     loom.virtual(() -> {
-      ContextInternal context = (ContextInternal) vertx.getOrCreateContext();
-      PromiseInternal<Object> promise = context.promise();
-      new Thread(() -> {
-        try {
-          Thread.sleep(100);
-        } catch (InterruptedException ignore) {
-        }
-        promise.complete(result);
-      }).start();
-      assertSame("HELLO", loom.await(promise.future().map(res -> "HELLO")));
+      assertSame("HELLO", loom.await(() -> {
+        ContextInternal context = (ContextInternal) vertx.getOrCreateContext();
+        PromiseInternal<Object> promise = context.promise();
+        new Thread(() -> {
+          try {
+            Thread.sleep(100);
+          } catch (InterruptedException ignore) {
+          }
+          promise.complete(result);
+        }).start();
+        return promise.future().map(res -> "HELLO");
+      }));
       testComplete();
     });
     await();

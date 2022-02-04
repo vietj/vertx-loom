@@ -2,10 +2,11 @@ package io.vertx.core.impl;
 
 import io.netty.channel.EventLoop;
 import io.vertx.core.Context;
+import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
-import io.vertx.core.VertxException;
 import io.vertx.core.impl.future.FutureInternal;
+import io.vertx.core.impl.future.Listener;
 
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -14,6 +15,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
+import java.util.function.Supplier;
 
 /**
  * A fork a WorkerContext with a couple of changes.
@@ -23,7 +25,8 @@ public class LoomContext extends ContextImpl {
   public static LoomContext create(Vertx vertx, EventLoop nettyEventLoop, ThreadFactory threadFactory) {
     VertxImpl _vertx = (VertxImpl) vertx;
     LoomContext[] ref = new LoomContext[1];
-    ExecutorService exec = Executors.newCachedThreadPool(threadFactory);
+    // Use a single carrier thread for virtual threads
+    ExecutorService exec = Executors.newSingleThreadExecutor(threadFactory);
     LoomContext context = new LoomContext(_vertx, nettyEventLoop, _vertx.internalWorkerPool, new WorkerPool(exec, null), null, _vertx.closeFuture(), null, threadFactory);
     ref[0] = context;
     return context;
@@ -104,27 +107,69 @@ public class LoomContext extends ContextImpl {
     return Thread.currentThread().isVirtual();
   }
 
+  @Override
+  public ContextInternal duplicate() {
+    // This is fine as we are running on event-loop
+    return create(owner, nettyEventLoop(), threadFactory);
+  }
+
   public <T> T await(FutureInternal<T> future) {
     CompletableFuture<T> fut = new CompletableFuture<>();
-    future.onComplete(ar -> {
-      if (ar.succeeded()) {
-        fut.complete(ar.result());
-      } else {
-        fut.completeExceptionally(ar.cause());
+    future.addListener(new Listener<T>() {
+      @Override
+      public void emitSuccess(ContextInternal context, T value) {
+        fut.complete(value);
+      }
+      @Override
+      public void emitFailure(ContextInternal context, Throwable failure) {
+        fut.completeExceptionally(failure);
+      }
+      @Override
+      public void onSuccess(T value) {
+        throw new UnsupportedOperationException();
+      }
+      @Override
+      public void onFailure(Throwable failure) {
+        throw new UnsupportedOperationException();
       }
     });
     try {
       return fut.get();
     } catch (InterruptedException e) {
-      throw new VertxException(e);
+      // Handle me
+      throw new UnsupportedOperationException(e);
     } catch (ExecutionException e) {
       throwAsUnchecked(e.getCause());
-      // Should not reach this
-      throw new UnsupportedOperationException();
+      return null;
+    }
+  }
+
+  public <T> T await(Supplier<Future<T>> supplier) {
+    ContextInternal duplicate = duplicate();
+    CompletableFuture<T> fut = new CompletableFuture<>();
+    duplicate.runOnContext(v -> {
+      Future<T> future = supplier.get();
+      future.onComplete(ar -> {
+        if (ar.succeeded()) {
+          fut.complete(ar.result());
+        } else {
+          fut.completeExceptionally(ar.cause());
+        }
+      });
+    });
+    try {
+      return fut.get();
+    } catch (InterruptedException e) {
+      // Handle me
+      throw new UnsupportedOperationException(e);
+    } catch (ExecutionException e) {
+      throwAsUnchecked(e.getCause());
+      return null;
     }
   }
 
   @SuppressWarnings("unchecked")
   private static <E extends Throwable> void throwAsUnchecked(Throwable t) throws E {
     throw (E) t;
-  }}
+  }
+}

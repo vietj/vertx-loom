@@ -4,15 +4,12 @@ import io.netty.channel.EventLoop;
 import io.vertx.core.Context;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
-import io.vertx.core.VertxException;
 import io.vertx.core.impl.ContextInternal;
 import io.vertx.core.impl.LoomContext;
 import io.vertx.core.impl.future.FutureInternal;
 
-import java.lang.reflect.Constructor;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
+import java.util.function.Supplier;
 
 public class VertxLoom {
 
@@ -24,18 +21,7 @@ public class VertxLoom {
 
   public void virtual(Runnable runnable) {
     EventLoop eventLoop = vertx.nettyEventLoopGroup().next();
-    // Use a single carrier thread for virtual threads
-    ExecutorService exec = Executors.newSingleThreadExecutor();
-    // Use this until the thread factory can be specified
-    ThreadFactory threadFactory;
-    try {
-      var vtf = Class.forName("java.lang.ThreadBuilders").getDeclaredClasses()[0];
-      Constructor constructor = vtf.getDeclaredConstructors()[0];
-      constructor.setAccessible(true);
-      threadFactory = (ThreadFactory) constructor.newInstance(new Object[] { exec, "vert.x-virtual-thread-", 0, 0, null });
-    } catch (Exception e) {
-      throw new VertxException(e);
-    }
+    ThreadFactory threadFactory = Thread.ofVirtual().name("vert.x-virtual-thread-", 0).factory();
     LoomContext context = LoomContext.create(vertx, eventLoop, threadFactory);
     context.runOnContext(v -> {
       runnable.run();
@@ -49,5 +35,13 @@ public class VertxLoom {
       throw new IllegalStateException();
     }
     return ctx.await((FutureInternal<T>) future);
+  }
+
+  public <T> T await(Supplier<Future<T>> supplier) {
+    LoomContext ctx = (LoomContext) vertx.getOrCreateContext();
+    if (ctx == null) {
+      throw new IllegalStateException();
+    }
+    return ctx.await(supplier);
   }
 }
