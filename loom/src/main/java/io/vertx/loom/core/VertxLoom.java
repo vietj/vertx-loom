@@ -1,9 +1,11 @@
 package io.vertx.loom.core;
 
 import io.netty.channel.EventLoop;
+import io.vertx.core.Context;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.VertxException;
+import io.vertx.core.impl.ContextInternal;
 import io.vertx.core.impl.LoomContext;
 import io.vertx.core.impl.future.FutureInternal;
 
@@ -41,7 +43,8 @@ public class VertxLoom {
   }
 
   public <T> T await(Future<T> future) {
-    LoomContext ctx = (LoomContext) vertx.getOrCreateContext();
+    ContextInternal internal = (ContextInternal) vertx.getOrCreateContext();
+    LoomContext ctx = (LoomContext) internal.unwrap();
     if (ctx == null) {
       throw new IllegalStateException();
     }
