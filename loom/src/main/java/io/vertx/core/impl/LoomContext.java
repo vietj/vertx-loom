@@ -7,10 +7,12 @@ import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.impl.future.FutureInternal;
 import io.vertx.core.impl.future.Listener;
+import io.vertx.core.spi.metrics.PoolMetrics;
 
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
@@ -33,6 +35,7 @@ public class LoomContext extends ContextImpl {
   }
 
   private final ThreadFactory threadFactory;
+  private Executor executor;
 
   LoomContext(VertxInternal vertx,
               EventLoop eventLoop,
@@ -75,6 +78,14 @@ public class LoomContext extends ContextImpl {
   }
 
   @Override
+  public Executor executor() {
+    if (executor == null) {
+      executor = workerPool.executor();
+    }
+    return executor;
+  }
+
+  @Override
   protected void execute(AbstractContext ctx, Runnable task) {
     execute(this, task, Runnable::run);
   }
@@ -86,7 +97,7 @@ public class LoomContext extends ContextImpl {
 
   private <T> void run(ContextInternal ctx, T value, Handler<T> task) {
     Objects.requireNonNull(task, "Task handler must not be null");
-    workerPool.executor().execute(() -> {
+    executor().execute(() -> {
       ctx.dispatch(value, task);
     });
   }
@@ -114,14 +125,17 @@ public class LoomContext extends ContextImpl {
   }
 
   public <T> T await(FutureInternal<T> future) {
+    System.out.println("awaiting");
     CompletableFuture<T> fut = new CompletableFuture<>();
     future.addListener(new Listener<T>() {
       @Override
       public void emitSuccess(ContextInternal context, T value) {
+        System.out.println("success " + value);
         fut.complete(value);
       }
       @Override
       public void emitFailure(ContextInternal context, Throwable failure) {
+        System.out.println("failure " + failure.getMessage());
         fut.completeExceptionally(failure);
       }
       @Override
