@@ -13,6 +13,7 @@ import org.junit.Test;
 
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 public class AwaitBugTest {
 
@@ -30,13 +31,14 @@ public class AwaitBugTest {
 
     CountDownLatch latch = new CountDownLatch(1);
 
+    HttpServer server = vertx.createHttpServer();
+    server.requestHandler(req -> {
+      req.response().end(FUT_VALUE);
+    });
+    server.listen(8088, "localhost").toCompletionStage().toCompletableFuture().get(10, TimeUnit.SECONDS);
+
     vertxLoom.virtual(() -> {
-      HttpServer server = vertx.createHttpServer();
-      server.requestHandler(req -> {
-        String futVal = vertxLoom.await(fut());
-        req.response().end(futVal);
-      });
-      vertxLoom.await(server.listen(8088, "localhost"));
+
 
       HttpClient client = vertx.createHttpClient();
       System.out.println("If 100 lines are printed the test passed:");
