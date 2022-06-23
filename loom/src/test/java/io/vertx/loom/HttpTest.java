@@ -1,8 +1,11 @@
 package io.vertx.loom;
 
+import io.vertx.core.Vertx;
+import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.Http2Settings;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientOptions;
+import io.vertx.core.http.HttpClientRequest;
 import io.vertx.core.http.HttpClientResponse;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServer;
@@ -13,9 +16,11 @@ import io.vertx.test.core.VertxTestBase;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.TimeUnit;
 
 public class HttpTest extends VertxTestBase {
 
@@ -66,4 +71,50 @@ public class HttpTest extends VertxTestBase {
     await();
   }
 
+  @Test
+  public void testHttpClient1() throws Exception {
+    HttpServer server = vertx.createHttpServer();
+    server.requestHandler(req -> {
+      req.response().end("Hello World");
+    });
+    server.listen(8088, "localhost").toCompletionStage().toCompletableFuture().get(10, TimeUnit.SECONDS);
+    loom.virtual(() -> {
+      HttpClient client = vertx.createHttpClient();
+      for (int i = 0; i < 100; ++i) {
+        HttpClientRequest req = loom.await(client.request(HttpMethod.GET, 8088, "localhost", "/"));
+        HttpClientResponse resp = loom.await(req.send());
+        Buffer body = loom.await(resp.body());
+        String bodyString = body.toString(StandardCharsets.UTF_8);
+        assertEquals("Hello World", body);
+      }
+      testComplete();
+    });
+    await();
+  }
+
+  @Test
+  public void testHttpClient2() throws Exception {
+    waitFor(100);
+    HttpServer server = vertx.createHttpServer();
+    server.requestHandler(req -> {
+      req.response().end("Hello World");
+    });
+    server.listen(8088, "localhost").toCompletionStage().toCompletableFuture().get(10, TimeUnit.SECONDS);
+    loom.virtual(() -> {
+      HttpClient client = vertx.createHttpClient();
+      for (int i = 0; i < 100; ++i) {
+        HttpClientRequest req = loom.await(client.request(HttpMethod.GET, 8088, "localhost", "/"));
+        HttpClientResponse resp = loom.await(req.send());
+        StringBuffer body = new StringBuffer();
+        resp.handler(buff -> {
+          body.append(buff.toString());
+        });
+        resp.endHandler(v -> {
+          assertEquals("Hello World", body.toString());
+          complete();
+        });
+      }
+    });
+    await();
+  }
 }
