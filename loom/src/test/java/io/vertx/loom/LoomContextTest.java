@@ -108,4 +108,19 @@ public class LoomContextTest extends VertxTestBase {
     });
     await();
   }
+
+  @Test
+  public void testTimer() {
+    loom.virtual(() -> {
+      ContextInternal context = (ContextInternal) vertx.getOrCreateContext();
+      PromiseInternal<String> promise = context.promise();
+      vertx.setTimer(100, id -> {
+        promise.complete("foo");
+      });
+      String res = loom.await(promise);
+      assertEquals("foo", res);
+      testComplete();
+    });
+    await();
+  }
 }
