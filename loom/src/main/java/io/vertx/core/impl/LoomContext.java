@@ -7,16 +7,12 @@ import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.impl.future.FutureInternal;
 import io.vertx.core.impl.future.Listener;
-import io.vertx.core.spi.metrics.PoolMetrics;
 
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.ThreadFactory;
 import java.util.function.Supplier;
 
 /**
@@ -24,17 +20,16 @@ import java.util.function.Supplier;
  */
 public class LoomContext extends ContextImpl {
 
-  public static LoomContext create(Vertx vertx, EventLoop nettyEventLoop, ThreadFactory threadFactory) {
+  public static LoomContext create(Vertx vertx, EventLoop nettyEventLoop) {
     VertxImpl _vertx = (VertxImpl) vertx;
     LoomContext[] ref = new LoomContext[1];
     // Use a single carrier thread for virtual threads
-    ExecutorService exec = Executors.newSingleThreadExecutor(threadFactory);
-    LoomContext context = new LoomContext(_vertx, nettyEventLoop, _vertx.internalWorkerPool, new WorkerPool(exec, null), null, _vertx.closeFuture(), null, threadFactory);
+    LoomContext context = new LoomContext(_vertx, nettyEventLoop, _vertx.internalWorkerPool, _vertx.workerPool, null, _vertx.closeFuture(), null);
     ref[0] = context;
     return context;
   }
 
-  private final ThreadFactory threadFactory;
+  private final Scheduler scheduler;
   private Executor executor;
 
   LoomContext(VertxInternal vertx,
@@ -43,11 +38,10 @@ public class LoomContext extends ContextImpl {
               WorkerPool workerPool,
               Deployment deployment,
               CloseFuture closeFuture,
-              ClassLoader tccl,
-              ThreadFactory threadFactory) {
+              ClassLoader tccl) {
     super(vertx, eventLoop, internalBlockingPool, workerPool, deployment, closeFuture, tccl);
 
-    this.threadFactory = threadFactory;
+    this.scheduler = new Scheduler();
   }
 
   @Override
@@ -97,7 +91,7 @@ public class LoomContext extends ContextImpl {
 
   private <T> void run(ContextInternal ctx, T value, Handler<T> task) {
     Objects.requireNonNull(task, "Task handler must not be null");
-    executor().execute(() -> {
+    scheduler.execute(() -> {
       ctx.dispatch(value, task);
     });
   }
@@ -106,7 +100,7 @@ public class LoomContext extends ContextImpl {
     if (Context.isOnWorkerThread()) {
       task.handle(argument);
     } else {
-      workerPool.executor().execute(() -> {
+      scheduler.execute(() -> {
         task.handle(argument);
       });
     }
@@ -121,41 +115,11 @@ public class LoomContext extends ContextImpl {
   @Override
   public ContextInternal duplicate() {
     // This is fine as we are running on event-loop
-    return create(owner, nettyEventLoop(), threadFactory);
+    return create(owner, nettyEventLoop());
   }
 
   public <T> T await(FutureInternal<T> future) {
-    System.out.println("awaiting");
-    CompletableFuture<T> fut = new CompletableFuture<>();
-    future.addListener(new Listener<T>() {
-      @Override
-      public void emitSuccess(ContextInternal context, T value) {
-        System.out.println("success " + value);
-        fut.complete(value);
-      }
-      @Override
-      public void emitFailure(ContextInternal context, Throwable failure) {
-        System.out.println("failure " + failure.getMessage());
-        fut.completeExceptionally(failure);
-      }
-      @Override
-      public void onSuccess(T value) {
-        throw new UnsupportedOperationException();
-      }
-      @Override
-      public void onFailure(Throwable failure) {
-        throw new UnsupportedOperationException();
-      }
-    });
-    try {
-      return fut.get();
-    } catch (InterruptedException e) {
-      // Handle me
-      throw new UnsupportedOperationException(e);
-    } catch (ExecutionException e) {
-      throwAsUnchecked(e.getCause());
-      return null;
-    }
+    return scheduler.await(future.toCompletionStage().toCompletableFuture());
   }
 
   public <T> T await(Supplier<Future<T>> supplier) {

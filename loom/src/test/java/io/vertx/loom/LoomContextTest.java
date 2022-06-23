@@ -7,6 +7,7 @@ import io.vertx.core.impl.future.PromiseInternal;
 import io.vertx.loom.core.VertxLoom;
 import io.vertx.test.core.VertxTestBase;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.concurrent.CountDownLatch;
@@ -30,7 +31,7 @@ public class LoomContextTest extends VertxTestBase {
       Context context = vertx.getOrCreateContext();
       assertTrue(context instanceof LoomContext);
       context.runOnContext(v -> {
-        assertSame(thread, Thread.currentThread());
+        assertNotSame(thread, Thread.currentThread());
         assertSame(context, vertx.getOrCreateContext());
         testComplete();
       });

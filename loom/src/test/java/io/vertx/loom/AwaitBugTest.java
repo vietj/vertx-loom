@@ -32,34 +32,23 @@ public class AwaitBugTest {
     CountDownLatch latch = new CountDownLatch(1);
 
     HttpServer server = vertx.createHttpServer();
-    server.connectionHandler(conn -> {
-      System.out.println("got conn");
-    });
     server.requestHandler(req -> {
       req.response().end(FUT_VALUE);
     });
     server.listen(8088, "localhost").toCompletionStage().toCompletableFuture().get(10, TimeUnit.SECONDS);
-
     vertxLoom.virtual(() -> {
-
-
       HttpClient client = vertx.createHttpClient();
-      System.out.println("If 100 lines are printed the test passed:");
       for (int i = 0; i < 100; ++i) {
-        System.out.println("Attempt #" + i);
         HttpClientRequest req = vertxLoom.await(client.request(HttpMethod.GET, 8088, "localhost", "/"));
-        System.out.println("a");
         HttpClientResponse resp = vertxLoom.await(req.send());
-        System.out.println("b " + Thread.currentThread());
         Buffer body = vertxLoom.await(resp.body());
         String bodyString = body.toString(StandardCharsets.UTF_8);
-        System.out.println(bodyString);
-        if (!FUT_VALUE.equals(bodyString)) throw new RuntimeException("Failed");
+        if (!FUT_VALUE.equals(bodyString)) {
+          throw new RuntimeException("Failed");
+        };
       }
-      System.out.println("It worked!");
       latch.countDown();
     });
-
     latch.await();
   }
 }
