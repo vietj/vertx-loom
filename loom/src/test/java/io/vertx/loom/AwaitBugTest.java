@@ -32,6 +32,9 @@ public class AwaitBugTest {
     CountDownLatch latch = new CountDownLatch(1);
 
     HttpServer server = vertx.createHttpServer();
+    server.connectionHandler(conn -> {
+      System.out.println("got conn");
+    });
     server.requestHandler(req -> {
       req.response().end(FUT_VALUE);
     });
