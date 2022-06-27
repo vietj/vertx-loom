@@ -108,8 +108,7 @@ public class LoomContext extends ContextImpl {
 
   @Override
   public boolean inThread() {
-    // Find something better
-    return Thread.currentThread().isVirtual();
+    return scheduler.inThread();
   }
 
   @Override

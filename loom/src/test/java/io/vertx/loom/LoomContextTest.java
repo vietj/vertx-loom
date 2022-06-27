@@ -143,4 +143,21 @@ public class LoomContextTest extends VertxTestBase {
     });
     await();
   }
+
+  @Test
+  public void testInThread() {
+    loom.run(v1 -> {
+      ContextInternal context = (ContextInternal) vertx.getOrCreateContext();
+      assertTrue(context.inThread());
+      new Thread(() -> {
+        boolean wasNotInThread = !context.inThread();
+        context.runOnContext(v2 -> {
+          assertTrue(wasNotInThread);
+          assertTrue(context.inThread());
+          testComplete();
+        });
+      }).start();
+    });
+    await();
+  }
 }

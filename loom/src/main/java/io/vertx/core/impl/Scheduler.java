@@ -25,6 +25,7 @@ public class Scheduler implements Executor {
 
   private final LinkedList<Runnable> tasks = new LinkedList<>();
   private Thread current;
+  private final ThreadLocal<Boolean> inThread = new ThreadLocal<>();
 
   @Override
   public void execute(Runnable command) {
@@ -53,8 +54,17 @@ public class Scheduler implements Executor {
           break;
         }
       }
-      cmd.run();
+      inThread.set(true);
+      try {
+        cmd.run();
+      } finally {
+        inThread.set(false);
+      }
     }
+  }
+
+  public boolean inThread() {
+    return inThread.get() == Boolean.TRUE;
   }
 
   public <T> T await(CompletableFuture<T> fut) {
