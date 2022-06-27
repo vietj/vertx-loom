@@ -2,17 +2,13 @@ package io.vertx.core.impl;
 
 import io.netty.channel.EventLoop;
 import io.vertx.core.Context;
-import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.impl.future.FutureInternal;
 
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
-import java.util.function.Supplier;
 
 /**
  * A fork a WorkerContext with a couple of changes.
@@ -119,34 +115,5 @@ public class LoomContext extends ContextImpl {
 
   public <T> T await(FutureInternal<T> future) {
     return scheduler.await(future.toCompletionStage().toCompletableFuture());
-  }
-
-  public <T> T await(Supplier<Future<T>> supplier) {
-    ContextInternal duplicate = duplicate();
-    CompletableFuture<T> fut = new CompletableFuture<>();
-    duplicate.runOnContext(v -> {
-      Future<T> future = supplier.get();
-      future.onComplete(ar -> {
-        if (ar.succeeded()) {
-          fut.complete(ar.result());
-        } else {
-          fut.completeExceptionally(ar.cause());
-        }
-      });
-    });
-    try {
-      return fut.get();
-    } catch (InterruptedException e) {
-      // Handle me
-      throw new UnsupportedOperationException(e);
-    } catch (ExecutionException e) {
-      throwAsUnchecked(e.getCause());
-      return null;
-    }
-  }
-
-  @SuppressWarnings("unchecked")
-  private static <E extends Throwable> void throwAsUnchecked(Throwable t) throws E {
-    throw (E) t;
   }
 }
