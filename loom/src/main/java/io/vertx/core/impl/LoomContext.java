@@ -17,11 +17,7 @@ public class LoomContext extends ContextImpl {
 
   public static LoomContext create(Vertx vertx, EventLoop nettyEventLoop, Scheduler scheduler) {
     VertxImpl _vertx = (VertxImpl) vertx;
-    LoomContext[] ref = new LoomContext[1];
-    // Use a single carrier thread for virtual threads
-    LoomContext context = new LoomContext(_vertx, nettyEventLoop, _vertx.internalWorkerPool, _vertx.workerPool, scheduler, null, _vertx.closeFuture(), null);
-    ref[0] = context;
-    return context;
+    return new LoomContext(_vertx, nettyEventLoop, _vertx.internalWorkerPool, _vertx.workerPool, scheduler, null, _vertx.closeFuture(), null);
   }
 
   private final Scheduler scheduler;
