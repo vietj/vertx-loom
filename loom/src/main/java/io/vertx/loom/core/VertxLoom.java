@@ -1,16 +1,12 @@
 package io.vertx.loom.core;
 
 import io.netty.channel.EventLoop;
-import io.vertx.core.Context;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.impl.ContextInternal;
 import io.vertx.core.impl.LoomContext;
 import io.vertx.core.impl.Scheduler;
 import io.vertx.core.impl.future.FutureInternal;
-
-import java.util.concurrent.ThreadFactory;
-import java.util.function.Supplier;
 
 public class VertxLoom {
 

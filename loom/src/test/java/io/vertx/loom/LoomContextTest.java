@@ -1,6 +1,8 @@
 package io.vertx.loom;
 
 import io.vertx.core.Context;
+import io.vertx.core.Future;
+import io.vertx.core.Promise;
 import io.vertx.core.impl.ContextInternal;
 import io.vertx.core.impl.LoomContext;
 import io.vertx.core.impl.future.PromiseInternal;
@@ -10,8 +12,12 @@ import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class LoomContextTest extends VertxTestBase {
 
@@ -31,7 +37,7 @@ public class LoomContextTest extends VertxTestBase {
       Context context = vertx.getOrCreateContext();
       assertTrue(context instanceof LoomContext);
       context.runOnContext(v -> {
-        assertNotSame(thread, Thread.currentThread());
+        assertSame(thread, Thread.currentThread());
         assertSame(context, vertx.getOrCreateContext());
         testComplete();
       });
@@ -77,31 +83,53 @@ public class LoomContextTest extends VertxTestBase {
     await();
   }
 
-  @Ignore
   @Test
-  public void testDuplicate() {
+  public void testDuplicateUseSameThread() {
+    int num = 1000;
+    waitFor(num);
     loom.virtual(() -> {
       ContextInternal context = (ContextInternal) vertx.getOrCreateContext();
-      int num = 1000;
-      CyclicBarrier barrier = new CyclicBarrier(num);
-      CountDownLatch latch = new CountDownLatch(num);
+      Thread th = Thread.currentThread();
       for (int i = 0;i < num;i++) {
         ContextInternal duplicate = context.duplicate();
         duplicate.runOnContext(v -> {
-          try {
-            barrier.await();
-          } catch (Exception e) {
-            fail(e);
-          }
-          latch.countDown();
+          assertSame(th, Thread.currentThread());
+          complete();
         });
       }
-      try {
-        latch.await();
-      } catch (Exception e) {
-        fail(e);
+    });
+    await();
+  }
+
+  @Test
+  public void testDuplicateConcurrentAwait() {
+    int num = 1000;
+    waitFor(num);
+    loom.virtual(() -> {
+      ContextInternal context = (ContextInternal) vertx.getOrCreateContext();
+      Object lock = new Object();
+      List<Promise<Void>> list = new ArrayList<>();
+      for (int i = 0;i < num;i++) {
+        ContextInternal duplicate = context.duplicate();
+        duplicate.runOnContext(v -> {
+          Promise<Void> promise = duplicate.promise();
+          boolean complete;
+          synchronized (lock) {
+            list.add(promise);
+            complete = list.size() == num;
+          }
+          if (complete) {
+            context.runOnContext(v2 -> {
+              synchronized (lock) {
+                list.forEach(p -> p.complete(null));
+              }
+            });
+          }
+          Future<Void> f = promise.future();
+          loom.await(f);
+          complete();
+        });
       }
-      testComplete();
     });
     await();
   }
