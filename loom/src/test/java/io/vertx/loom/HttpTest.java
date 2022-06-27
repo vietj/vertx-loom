@@ -1,6 +1,5 @@
 package io.vertx.loom;
 
-import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.Http2Settings;
 import io.vertx.core.http.HttpClient;
@@ -38,7 +37,7 @@ public class HttpTest extends VertxTestBase {
   public void testDuplicate() throws Exception {
     int num = 1000;
     CountDownLatch latch = new CountDownLatch(1);
-    loom.virtual(() -> {
+    loom.run(v -> {
       HttpServer server = vertx.createHttpServer(new HttpServerOptions().setInitialSettings(new Http2Settings().setMaxConcurrentStreams(num)));
       CyclicBarrier barrier = new CyclicBarrier(num);
       server.requestHandler(req -> {
@@ -52,7 +51,7 @@ public class HttpTest extends VertxTestBase {
         }
         req.response().end("Hello World");
       });
-      server.listen(8080, "localhost", onSuccess(v -> {
+      server.listen(8080, "localhost", onSuccess(v2 -> {
         latch.countDown();
       }));
     });
@@ -80,7 +79,7 @@ public class HttpTest extends VertxTestBase {
       req.response().end("Hello World");
     });
     server.listen(8088, "localhost").toCompletionStage().toCompletableFuture().get(10, TimeUnit.SECONDS);
-    loom.virtual(() -> {
+    loom.run(v -> {
       HttpClient client = vertx.createHttpClient();
       for (int i = 0; i < 100; ++i) {
         HttpClientRequest req = loom.await(client.request(HttpMethod.GET, 8088, "localhost", "/"));
@@ -102,7 +101,7 @@ public class HttpTest extends VertxTestBase {
       req.response().end("Hello World");
     });
     server.listen(8088, "localhost").toCompletionStage().toCompletableFuture().get(10, TimeUnit.SECONDS);
-    loom.virtual(() -> {
+    loom.run(v -> {
       HttpClient client = vertx.createHttpClient();
       for (int i = 0; i < 100; ++i) {
         HttpClientRequest req = loom.await(client.request(HttpMethod.GET, 8088, "localhost", "/"));
@@ -111,7 +110,7 @@ public class HttpTest extends VertxTestBase {
         resp.handler(buff -> {
           body.append(buff.toString());
         });
-        resp.endHandler(v -> {
+        resp.endHandler(v2 -> {
           assertEquals("Hello World", body.toString());
           complete();
         });

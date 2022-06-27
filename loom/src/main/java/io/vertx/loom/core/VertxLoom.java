@@ -2,6 +2,7 @@ package io.vertx.loom.core;
 
 import io.netty.channel.EventLoop;
 import io.vertx.core.Future;
+import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.impl.ContextInternal;
 import io.vertx.core.impl.LoomContext;
@@ -16,12 +17,13 @@ public class VertxLoom {
     this.vertx = vertx;
   }
 
-  public void virtual(Runnable runnable) {
+  /**
+   * Run a task on a Loom context using a virtual thread
+   */
+  public void run(Handler<Void> task) {
     EventLoop eventLoop = vertx.nettyEventLoopGroup().next();
     LoomContext context = LoomContext.create(vertx, eventLoop, new Scheduler());
-    context.runOnContext(v -> {
-      runnable.run();
-    });
+    context.runOnContext(task);
   }
 
   public <T> T await(Future<T> future) {

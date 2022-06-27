@@ -9,15 +9,10 @@ import io.vertx.core.impl.future.PromiseInternal;
 import io.vertx.loom.core.VertxLoom;
 import io.vertx.test.core.VertxTestBase;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.CyclicBarrier;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 
 public class LoomContextTest extends VertxTestBase {
 
@@ -31,12 +26,12 @@ public class LoomContextTest extends VertxTestBase {
 
   @Test
   public void testContext() {
-    loom.virtual(() -> {
+    loom.run(v -> {
       Thread thread = Thread.currentThread();
       assertTrue(thread.isVirtual());
       Context context = vertx.getOrCreateContext();
       assertTrue(context instanceof LoomContext);
-      context.runOnContext(v -> {
+      context.runOnContext(v2 -> {
         assertSame(thread, Thread.currentThread());
         assertSame(context, vertx.getOrCreateContext());
         testComplete();
@@ -48,7 +43,7 @@ public class LoomContextTest extends VertxTestBase {
   @Test
   public void testAwaitFuture() {
     Object result = new Object();
-    loom.virtual(() -> {
+    loom.run(v -> {
       ContextInternal context = (ContextInternal) vertx.getOrCreateContext();
       PromiseInternal<Object> promise = context.promise();
       new Thread(() -> {
@@ -67,7 +62,7 @@ public class LoomContextTest extends VertxTestBase {
   @Test
   public void testAwaitCompoundFuture() {
     Object result = new Object();
-    loom.virtual(() -> {
+    loom.run(v -> {
       ContextInternal context = (ContextInternal) vertx.getOrCreateContext();
       PromiseInternal<Object> promise = context.promise();
       new Thread(() -> {
@@ -87,12 +82,12 @@ public class LoomContextTest extends VertxTestBase {
   public void testDuplicateUseSameThread() {
     int num = 1000;
     waitFor(num);
-    loom.virtual(() -> {
+    loom.run(v -> {
       ContextInternal context = (ContextInternal) vertx.getOrCreateContext();
       Thread th = Thread.currentThread();
       for (int i = 0;i < num;i++) {
         ContextInternal duplicate = context.duplicate();
-        duplicate.runOnContext(v -> {
+        duplicate.runOnContext(v2 -> {
           assertSame(th, Thread.currentThread());
           complete();
         });
@@ -105,13 +100,13 @@ public class LoomContextTest extends VertxTestBase {
   public void testDuplicateConcurrentAwait() {
     int num = 1000;
     waitFor(num);
-    loom.virtual(() -> {
+    loom.run(v -> {
       ContextInternal context = (ContextInternal) vertx.getOrCreateContext();
       Object lock = new Object();
       List<Promise<Void>> list = new ArrayList<>();
       for (int i = 0;i < num;i++) {
         ContextInternal duplicate = context.duplicate();
-        duplicate.runOnContext(v -> {
+        duplicate.runOnContext(v2 -> {
           Promise<Void> promise = duplicate.promise();
           boolean complete;
           synchronized (lock) {
@@ -119,7 +114,7 @@ public class LoomContextTest extends VertxTestBase {
             complete = list.size() == num;
           }
           if (complete) {
-            context.runOnContext(v2 -> {
+            context.runOnContext(v3 -> {
               synchronized (lock) {
                 list.forEach(p -> p.complete(null));
               }
@@ -136,7 +131,7 @@ public class LoomContextTest extends VertxTestBase {
 
   @Test
   public void testTimer() {
-    loom.virtual(() -> {
+    loom.run(v -> {
       ContextInternal context = (ContextInternal) vertx.getOrCreateContext();
       PromiseInternal<String> promise = context.promise();
       vertx.setTimer(100, id -> {

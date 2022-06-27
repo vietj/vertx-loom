@@ -17,7 +17,7 @@ public class Main {
 
     VertxLoom vertxLoom = new VertxLoom(vertx);
 
-    vertxLoom.virtual(() -> {
+    vertxLoom.run(v -> {
       HttpServer server = vertx.createHttpServer();
       server.requestHandler(req -> {
         System.out.println("Begin HTTP request on " + Thread.currentThread());
