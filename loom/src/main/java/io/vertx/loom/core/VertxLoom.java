@@ -6,6 +6,7 @@ import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.impl.ContextInternal;
 import io.vertx.core.impl.LoomContext;
+import io.vertx.core.impl.Scheduler;
 import io.vertx.core.impl.future.FutureInternal;
 
 import java.util.concurrent.ThreadFactory;
@@ -21,7 +22,7 @@ public class VertxLoom {
 
   public void virtual(Runnable runnable) {
     EventLoop eventLoop = vertx.nettyEventLoopGroup().next();
-    LoomContext context = LoomContext.create(vertx, eventLoop);
+    LoomContext context = LoomContext.create(vertx, eventLoop, new Scheduler());
     context.runOnContext(v -> {
       runnable.run();
     });
@@ -34,13 +35,5 @@ public class VertxLoom {
       throw new IllegalStateException();
     }
     return ctx.await((FutureInternal<T>) future);
-  }
-
-  public <T> T await(Supplier<Future<T>> supplier) {
-    LoomContext ctx = (LoomContext) vertx.getOrCreateContext();
-    if (ctx == null) {
-      throw new IllegalStateException();
-    }
-    return ctx.await(supplier);
   }
 }

@@ -14,6 +14,7 @@ import io.vertx.core.http.HttpVersion;
 import io.vertx.loom.core.VertxLoom;
 import io.vertx.test.core.VertxTestBase;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -32,6 +33,7 @@ public class HttpTest extends VertxTestBase {
     loom = new VertxLoom(vertx);
   }
 
+  @Ignore
   @Test
   public void testDuplicate() throws Exception {
     int num = 1000;
@@ -85,7 +87,7 @@ public class HttpTest extends VertxTestBase {
         HttpClientResponse resp = loom.await(req.send());
         Buffer body = loom.await(resp.body());
         String bodyString = body.toString(StandardCharsets.UTF_8);
-        assertEquals("Hello World", body);
+        assertEquals("Hello World", body.toString());
       }
       testComplete();
     });

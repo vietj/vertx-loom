@@ -20,11 +20,11 @@ import java.util.function.Supplier;
  */
 public class LoomContext extends ContextImpl {
 
-  public static LoomContext create(Vertx vertx, EventLoop nettyEventLoop) {
+  public static LoomContext create(Vertx vertx, EventLoop nettyEventLoop, Scheduler scheduler) {
     VertxImpl _vertx = (VertxImpl) vertx;
     LoomContext[] ref = new LoomContext[1];
     // Use a single carrier thread for virtual threads
-    LoomContext context = new LoomContext(_vertx, nettyEventLoop, _vertx.internalWorkerPool, _vertx.workerPool, null, _vertx.closeFuture(), null);
+    LoomContext context = new LoomContext(_vertx, nettyEventLoop, _vertx.internalWorkerPool, _vertx.workerPool, scheduler, null, _vertx.closeFuture(), null);
     ref[0] = context;
     return context;
   }
@@ -36,12 +36,13 @@ public class LoomContext extends ContextImpl {
               EventLoop eventLoop,
               WorkerPool internalBlockingPool,
               WorkerPool workerPool,
+              Scheduler scheduler,
               Deployment deployment,
               CloseFuture closeFuture,
               ClassLoader tccl) {
     super(vertx, eventLoop, internalBlockingPool, workerPool, deployment, closeFuture, tccl);
 
-    this.scheduler = new Scheduler();
+    this.scheduler = scheduler;
   }
 
   @Override
@@ -115,7 +116,7 @@ public class LoomContext extends ContextImpl {
   @Override
   public ContextInternal duplicate() {
     // This is fine as we are running on event-loop
-    return create(owner, nettyEventLoop());
+    return create(owner, nettyEventLoop(), scheduler);
   }
 
   public <T> T await(FutureInternal<T> future) {
