@@ -65,10 +65,7 @@ public class LoomContext extends ContextImpl {
 
   @Override
   public Executor executor() {
-    if (executor == null) {
-      executor = workerPool.executor();
-    }
-    return executor;
+    return scheduler;
   }
 
   @Override
