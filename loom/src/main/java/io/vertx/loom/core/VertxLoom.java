@@ -5,8 +5,8 @@ import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.impl.ContextInternal;
-import io.vertx.core.impl.LoomContext;
-import io.vertx.core.impl.Scheduler;
+import io.vertx.loom.core.impl.LoomContext;
+import io.vertx.loom.core.impl.Scheduler;
 import io.vertx.core.impl.future.FutureInternal;
 
 public class VertxLoom {

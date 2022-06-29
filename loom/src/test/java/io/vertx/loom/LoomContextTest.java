@@ -4,7 +4,7 @@ import io.vertx.core.Context;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.core.impl.ContextInternal;
-import io.vertx.core.impl.LoomContext;
+import io.vertx.loom.core.impl.LoomContext;
 import io.vertx.core.impl.future.PromiseInternal;
 import io.vertx.loom.core.VertxLoom;
 import io.vertx.test.core.VertxTestBase;

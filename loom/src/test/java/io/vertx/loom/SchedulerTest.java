@@ -1,6 +1,6 @@
 package io.vertx.loom;
 
-import io.vertx.core.impl.Scheduler;
+import io.vertx.loom.core.impl.Scheduler;
 import io.vertx.test.core.VertxTestBase;
 import org.junit.Test;
 

@@ -1,4 +1,4 @@
-package io.vertx.core.impl;
+package io.vertx.loom.core.impl;
 
 import java.util.LinkedList;
 import java.util.concurrent.CompletableFuture;

@@ -1,9 +1,16 @@
-package io.vertx.core.impl;
+package io.vertx.loom.core.impl;
 
 import io.netty.channel.EventLoop;
 import io.vertx.core.Context;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
+import io.vertx.core.impl.CloseFuture;
+import io.vertx.core.impl.ContextBase;
+import io.vertx.core.impl.ContextInternal;
+import io.vertx.core.impl.Deployment;
+import io.vertx.core.impl.VertxImpl;
+import io.vertx.core.impl.VertxInternal;
+import io.vertx.core.impl.WorkerPool;
 import io.vertx.core.impl.future.FutureInternal;
 
 import java.util.Objects;
@@ -13,11 +20,11 @@ import java.util.concurrent.RejectedExecutionException;
 /**
  * A fork a WorkerContext with a couple of changes.
  */
-public class LoomContext extends ContextImpl {
+public class LoomContext extends ContextBase {
 
   public static LoomContext create(Vertx vertx, EventLoop nettyEventLoop, Scheduler scheduler) {
     VertxImpl _vertx = (VertxImpl) vertx;
-    return new LoomContext(_vertx, nettyEventLoop, _vertx.internalWorkerPool, _vertx.workerPool, scheduler, null, _vertx.closeFuture(), null);
+    return new LoomContext(_vertx, nettyEventLoop, _vertx.getInternalWorkerPool(), _vertx.getWorkerPool(), scheduler, null, _vertx.closeFuture(), null);
   }
 
   private final Scheduler scheduler;
@@ -37,7 +44,7 @@ public class LoomContext extends ContextImpl {
   }
 
   @Override
-  protected void runOnContext(AbstractContext ctx, Handler<Void> action) {
+  protected void runOnContext(ContextInternal ctx, Handler<Void> action) {
     try {
       run(ctx, null, action);
     } catch (RejectedExecutionException ignore) {
@@ -52,12 +59,12 @@ public class LoomContext extends ContextImpl {
    * </ul>
    */
   @Override
-  <T> void execute(AbstractContext ctx, T argument, Handler<T> task) {
+  protected <T> void execute(ContextInternal ctx, T argument, Handler<T> task) {
     execute2(argument, task);
   }
 
   @Override
-  <T> void emit(AbstractContext ctx, T argument, Handler<T> task) {
+  protected <T> void emit(ContextInternal ctx, T argument, Handler<T> task) {
     execute2(argument, arg -> {
       ctx.dispatch(arg, task);
     });
@@ -69,12 +76,17 @@ public class LoomContext extends ContextImpl {
   }
 
   @Override
-  protected void execute(AbstractContext ctx, Runnable task) {
+  protected void execute(ContextInternal ctx, Runnable task) {
     execute(this, task, Runnable::run);
   }
 
   @Override
   public boolean isEventLoopContext() {
+    return false;
+  }
+
+  @Override
+  public boolean isWorkerContext() {
     return false;
   }
 
