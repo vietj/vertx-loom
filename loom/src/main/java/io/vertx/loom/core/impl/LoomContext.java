@@ -115,7 +115,7 @@ public class LoomContext extends ContextBase {
   @Override
   public ContextInternal duplicate() {
     // This is fine as we are running on event-loop
-    return create(owner, nettyEventLoop(), scheduler);
+    return create(owner(), nettyEventLoop(), scheduler);
   }
 
   public <T> T await(FutureInternal<T> future) {
