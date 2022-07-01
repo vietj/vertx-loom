@@ -10,6 +10,8 @@ import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.http.HttpVersion;
+import io.vertx.core.impl.ContextInternal;
+import io.vertx.core.impl.future.PromiseInternal;
 import io.vertx.loom.core.VertxLoom;
 import io.vertx.test.core.VertxTestBase;
 import org.junit.Before;
@@ -114,6 +116,28 @@ public class HttpTest extends VertxTestBase {
           assertEquals("Hello World", body.toString());
           complete();
         });
+      }
+    });
+    await();
+  }
+
+  @Test
+  public void testHttpClientTimeout() throws Exception {
+    HttpServer server = vertx.createHttpServer();
+    server.requestHandler(req -> {
+    });
+    server.listen(8088, "localhost").toCompletionStage().toCompletableFuture().get(10, TimeUnit.SECONDS);
+    loom.run(v -> {
+      HttpClient client = vertx.createHttpClient();
+      ContextInternal ctx = (ContextInternal) vertx.getOrCreateContext();
+      HttpClientRequest req = loom.await(client.request(HttpMethod.GET, 8088, "localhost", "/"));
+      PromiseInternal<HttpClientResponse> promise = ctx.promise();
+      req.send().onComplete(promise);
+      vertx.setTimer(500, id -> promise.tryFail("Too late"));
+      try {
+        HttpClientResponse resp = loom.await(promise.future());
+      } catch (Exception e) {
+        testComplete();
       }
     });
     await();
