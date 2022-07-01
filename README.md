@@ -40,18 +40,6 @@ Await Vert.x futures.
 
 Blocking on other JDK blocking constructs such as latches, locks, sleep, etc... (since it would imply to have a multi-threaded application).
 
-### Thread local support
-
-Thread locals are only reliable within the execution of a context task.
-
-```java
-ThreadLocal<String> local = new ThreadLocal();
-local.set(userId);
-HttpClientRequest req = loom.await(client.request(HttpMethod.GET, 8080, "localhost", "/"));
-HttpClientResponse resp = loom.await(req.send());
-// Thread local remains the same since it's the same virtual thread
-```
-
 ### What you get
 
 Vert.x default application model dispatches events on the event-loop.
@@ -107,6 +95,18 @@ try {
 } catch (Exception timeout) {
   // Too late
 }
+```
+
+### Thread local support
+
+Thread locals are only reliable within the execution of a context task.
+
+```java
+ThreadLocal<String> local = new ThreadLocal();
+local.set(userId);
+HttpClientRequest req = loom.await(client.request(HttpMethod.GET, 8080, "localhost", "/"));
+HttpClientResponse resp = loom.await(req.send());
+// Thread local remains the same since it's the same virtual thread
 ```
 
 ### How it works
