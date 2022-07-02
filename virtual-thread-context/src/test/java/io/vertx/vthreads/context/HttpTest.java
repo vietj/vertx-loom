@@ -1,4 +1,4 @@
-package io.vertx.loom;
+package io.vertx.vthreads.context;
 
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.Http2Settings;
@@ -12,7 +12,6 @@ import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.http.HttpVersion;
 import io.vertx.core.impl.ContextInternal;
 import io.vertx.core.impl.future.PromiseInternal;
-import io.vertx.loom.core.VertxLoom;
 import io.vertx.test.core.VertxTestBase;
 import org.junit.Before;
 import org.junit.Ignore;
@@ -26,12 +25,12 @@ import java.util.concurrent.TimeUnit;
 
 public class HttpTest extends VertxTestBase {
 
-  VertxLoom loom;
+  VThreads vthreads;
 
   @Before
   public void setUp() throws Exception {
     super.setUp();
-    loom = new VertxLoom(vertx);
+    vthreads = new VThreads(vertx);
   }
 
   @Ignore
@@ -39,7 +38,7 @@ public class HttpTest extends VertxTestBase {
   public void testDuplicate() throws Exception {
     int num = 1000;
     CountDownLatch latch = new CountDownLatch(1);
-    loom.run(v -> {
+    vthreads.runOnVirtualThreads(v -> {
       HttpServer server = vertx.createHttpServer(new HttpServerOptions().setInitialSettings(new Http2Settings().setMaxConcurrentStreams(num)));
       CyclicBarrier barrier = new CyclicBarrier(num);
       server.requestHandler(req -> {
@@ -81,12 +80,12 @@ public class HttpTest extends VertxTestBase {
       req.response().end("Hello World");
     });
     server.listen(8088, "localhost").toCompletionStage().toCompletableFuture().get(10, TimeUnit.SECONDS);
-    loom.run(v -> {
+    vthreads.runOnVirtualThreads(v -> {
       HttpClient client = vertx.createHttpClient();
       for (int i = 0; i < 100; ++i) {
-        HttpClientRequest req = loom.await(client.request(HttpMethod.GET, 8088, "localhost", "/"));
-        HttpClientResponse resp = loom.await(req.send());
-        Buffer body = loom.await(resp.body());
+        HttpClientRequest req = vthreads.await(client.request(HttpMethod.GET, 8088, "localhost", "/"));
+        HttpClientResponse resp = vthreads.await(req.send());
+        Buffer body = vthreads.await(resp.body());
         String bodyString = body.toString(StandardCharsets.UTF_8);
         assertEquals("Hello World", body.toString());
       }
@@ -103,11 +102,11 @@ public class HttpTest extends VertxTestBase {
       req.response().end("Hello World");
     });
     server.listen(8088, "localhost").toCompletionStage().toCompletableFuture().get(10, TimeUnit.SECONDS);
-    loom.run(v -> {
+    vthreads.runOnVirtualThreads(v -> {
       HttpClient client = vertx.createHttpClient();
       for (int i = 0; i < 100; ++i) {
-        HttpClientRequest req = loom.await(client.request(HttpMethod.GET, 8088, "localhost", "/"));
-        HttpClientResponse resp = loom.await(req.send());
+        HttpClientRequest req = vthreads.await(client.request(HttpMethod.GET, 8088, "localhost", "/"));
+        HttpClientResponse resp = vthreads.await(req.send());
         StringBuffer body = new StringBuffer();
         resp.handler(buff -> {
           body.append(buff.toString());
@@ -127,15 +126,15 @@ public class HttpTest extends VertxTestBase {
     server.requestHandler(req -> {
     });
     server.listen(8088, "localhost").toCompletionStage().toCompletableFuture().get(10, TimeUnit.SECONDS);
-    loom.run(v -> {
+    vthreads.runOnVirtualThreads(v -> {
       HttpClient client = vertx.createHttpClient();
       ContextInternal ctx = (ContextInternal) vertx.getOrCreateContext();
-      HttpClientRequest req = loom.await(client.request(HttpMethod.GET, 8088, "localhost", "/"));
+      HttpClientRequest req = vthreads.await(client.request(HttpMethod.GET, 8088, "localhost", "/"));
       PromiseInternal<HttpClientResponse> promise = ctx.promise();
       req.send().onComplete(promise);
       vertx.setTimer(500, id -> promise.tryFail("Too late"));
       try {
-        HttpClientResponse resp = loom.await(promise.future());
+        HttpClientResponse resp = vthreads.await(promise.future());
       } catch (Exception e) {
         testComplete();
       }
