@@ -1,4 +1,4 @@
-package io.vertx.vthreads.context.impl;
+package io.vertx.loom.core.impl;
 
 import io.netty.channel.EventLoop;
 import io.vertx.core.Context;
@@ -20,24 +20,24 @@ import java.util.concurrent.RejectedExecutionException;
 /**
  * A fork a WorkerContext with a couple of changes.
  */
-public class VirtualThreadContext extends ContextBase {
+public class LoomContext extends ContextBase {
 
-  public static VirtualThreadContext create(Vertx vertx, EventLoop nettyEventLoop, Scheduler scheduler) {
+  public static LoomContext create(Vertx vertx, EventLoop nettyEventLoop, Scheduler scheduler) {
     VertxImpl _vertx = (VertxImpl) vertx;
-    return new VirtualThreadContext(_vertx, nettyEventLoop, _vertx.getInternalWorkerPool(), _vertx.getWorkerPool(), scheduler, null, _vertx.closeFuture(), null);
+    return new LoomContext(_vertx, nettyEventLoop, _vertx.getInternalWorkerPool(), _vertx.getWorkerPool(), scheduler, null, _vertx.closeFuture(), null);
   }
 
   private final Scheduler scheduler;
   private Executor executor;
 
-  VirtualThreadContext(VertxInternal vertx,
-                       EventLoop eventLoop,
-                       WorkerPool internalBlockingPool,
-                       WorkerPool workerPool,
-                       Scheduler scheduler,
-                       Deployment deployment,
-                       CloseFuture closeFuture,
-                       ClassLoader tccl) {
+  LoomContext(VertxInternal vertx,
+              EventLoop eventLoop,
+              WorkerPool internalBlockingPool,
+              WorkerPool workerPool,
+              Scheduler scheduler,
+              Deployment deployment,
+              CloseFuture closeFuture,
+              ClassLoader tccl) {
     super(vertx, eventLoop, internalBlockingPool, workerPool, deployment, closeFuture, tccl);
 
     this.scheduler = scheduler;

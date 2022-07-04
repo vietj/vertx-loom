@@ -4,10 +4,10 @@
   <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>io.vertx</groupId>
-    <artifactId>vertx-virtualthreads-parent</artifactId>
+    <artifactId>vertx-loom-parent</artifactId>
     <version>1.0.0-SNAPSHOT</version>
   </parent>
-  <artifactId>vertx-virtualthreads-context</artifactId>
+  <artifactId>vertx-loom</artifactId>
   <packaging>jar</packaging>
 
   <properties>

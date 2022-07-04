@@ -1,19 +1,20 @@
-package io.vertx.vthreads.context;
+package io.vertx.loom;
 
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.eventbus.Message;
+import io.vertx.loom.core.VertxLoom;
 import io.vertx.test.core.VertxTestBase;
 import org.junit.Before;
 import org.junit.Test;
 
 public class EventBusTest extends VertxTestBase {
 
-  VThreads vthreads;
+  VertxLoom loom;
 
   @Before
   public void setUp() throws Exception {
     super.setUp();
-    vthreads = new VThreads(vertx);
+    loom = new VertxLoom(vertx);
   }
 
   @Test
@@ -22,8 +23,8 @@ public class EventBusTest extends VertxTestBase {
     eb.consumer("test-addr", msg -> {
       msg.reply(msg.body());
     });
-    vthreads.runOnVirtualThreads(v -> {
-      Message<String> ret = vthreads.await(eb.request("test-addr", "test"));
+    loom.run(v -> {
+      Message<String> ret = loom.await(eb.request("test-addr", "test"));
       assertEquals("test", ret.body());
       testComplete();
     });
