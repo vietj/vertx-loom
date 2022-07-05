@@ -14,23 +14,34 @@ Use virtual threads to write Vert.x code that looks like it is synchronous.
 You still write the traditional Vert.x code with events, but you have the opportunity to write synchronous code for complex
 workflows and use thread locals in such workflows.
 
-### Example
+### Examples
 
 ```java
-Async.run(v -> {
+Async async = new Async(vertx);
+async.run(v -> {
   // Run on a Vert.x a virtual thread
   HttpServer server = vertx.createHttpServer();
-  server.handler(request -> {
+  server.requestHandler(request -> {
     request.response().end("Hello World");
   });
-  Async.await(server.listen(8080, "localhost"));
+  await(server.listen(8080, "localhost"));
   HttpClient client = vertx.createHttpClient();
-  HttpClientRequest req = Async.await(client.request(HttpMethod.GET, 8080, "localhost", "/"));
-  HttpClientResponse resp = Async.await(req.send());
-  int status = resp.status();
-  Buffer body = Async.await(resp.body());
+  HttpClientRequest req = await(client.request(HttpMethod.GET, 8080, "localhost", "/"));
+  HttpClientResponse resp = await(req.send());
+  int status = resp.statusCode();
+  Buffer body = await(resp.body());
 });
 ```
+
+You can view all [examples](vertx-async-await-incubator/src/main/java/examples/AsyncExamples.java).
+
+### Prerequisites
+
+Java 19 using preview feature
+
+- [OpenJDK 19 EA](https://jdk.java.net/19/)
+- [Maven](https://stackoverflow.com/questions/52232681/compile-and-execute-a-jdk-preview-feature-with-maven)
+- [Intellij](https://foojay.io/today/how-to-run-project-loom-from-intellij-idea/)
 
 ### What this is about
 

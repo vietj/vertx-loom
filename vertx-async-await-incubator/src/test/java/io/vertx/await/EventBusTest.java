@@ -6,6 +6,8 @@ import io.vertx.test.core.VertxTestBase;
 import org.junit.Before;
 import org.junit.Test;
 
+import static io.vertx.await.Async.await;
+
 public class EventBusTest extends VertxTestBase {
 
   Async async;
@@ -23,7 +25,7 @@ public class EventBusTest extends VertxTestBase {
       msg.reply(msg.body());
     });
     async.run(v -> {
-      Message<String> ret = async.await(eb.request("test-addr", "test"));
+      Message<String> ret = Async.await(eb.request("test-addr", "test"));
       assertEquals("test", ret.body());
       testComplete();
     });

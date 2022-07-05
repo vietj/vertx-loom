@@ -26,12 +26,14 @@ public class Async {
     context.runOnContext(task);
   }
 
-  public <T> T await(Future<T> future) {
-    ContextInternal internal = (ContextInternal) vertx.getOrCreateContext();
-    VirtualThreadContext ctx = (VirtualThreadContext) internal.unwrap();
-    if (ctx == null) {
-      throw new IllegalStateException();
+  public static <T> T await(Future<T> future) {
+    ContextInternal ctx = (ContextInternal) Vertx.currentContext();
+    if (ctx != null) {
+      ctx = ctx.unwrap();
+      if (ctx instanceof VirtualThreadContext) {
+        return ((VirtualThreadContext)ctx).await((FutureInternal<T>) future);
+      }
     }
-    return ctx.await((FutureInternal<T>) future);
+    throw new IllegalStateException("Not running on a Vert.x virtual thread");
   }
 }
