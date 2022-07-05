@@ -5,6 +5,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * A scheduler that run tasks on virtual threads that can await futures.
@@ -26,17 +27,21 @@ public class Scheduler implements Executor {
   private final LinkedList<Runnable> tasks = new LinkedList<>();
   private Thread current;
   private final ThreadLocal<Boolean> inThread = new ThreadLocal<>();
+  private final ReentrantLock lock = new ReentrantLock();
 
   @Override
   public void execute(Runnable command) {
     Thread toStart;
-    synchronized (this) {
+    lock.lock();
+    try {
       tasks.addLast(command);
       if (current != null) {
         return;
       }
       toStart = threadFactory.newThread(this::run);
       current = toStart;
+    } finally {
+      lock.unlock();
     }
     toStart.start();
   }
@@ -44,7 +49,8 @@ public class Scheduler implements Executor {
   private void run() {
     while (true) {
       Runnable cmd;
-      synchronized (Scheduler.this) {
+      lock.lock();
+      try {
         if (current != Thread.currentThread()) {
           break;
         }
@@ -53,6 +59,8 @@ public class Scheduler implements Executor {
           current = null;
           break;
         }
+      } finally {
+        lock.unlock();
       }
       inThread.set(true);
       try {
@@ -70,7 +78,8 @@ public class Scheduler implements Executor {
   public <T> T await(CompletableFuture<T> fut) {
     Thread th = Thread.currentThread();
     Thread toStart;
-    synchronized (this) {
+    lock.lock();
+    try {
       if (current != th) {
         throw new IllegalStateException();
       }
@@ -80,23 +89,31 @@ public class Scheduler implements Executor {
         toStart = null;
       }
       current = toStart;
+    } finally {
+      lock.unlock();
     }
     if (toStart != null) {
       toStart.start();
     }
     CompletableFuture<T> latch = new CompletableFuture<>();
     fut.whenComplete((v, err) -> {
-      synchronized (Scheduler.this) {
+      lock.lock();
+      try {
         if (current != null) {
           tasks.addFirst(() -> {
-            synchronized (Scheduler.this) {
+            lock.lock();
+            try {
               current = th;
+            } finally {
+              lock.unlock();
             }
             doComplete(v, err, latch);
           });
           return;
         }
         current = th;
+      } finally {
+        lock.unlock();
       }
       doComplete(v, err, latch);
     });
