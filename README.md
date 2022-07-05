@@ -1,40 +1,40 @@
-# Vert.x Loom incubator
+# Vert.x Virtual Threads Incubator
 
-Incubator for Loom prototypes.
+Incubator for virtual threads based prototypes.
 
 This PoC is based on the [Async/Await support by August Nagro](https://github.com/AugustNagro/vertx-async-await).
 
-## Vert.x Loom
+## Vert.x Async/Await
 
-Use virtual threads to write asynchronous Vert.x code that looks like it is synchronous.
+Use virtual threads to write Vert.x code that looks like it is synchronous.
 
 - await Vert.x futures
 - more meaningful stack traces
 
-You still write Vert.x code with events, but you have the opportunity to write synchronous code for complex
+You still write the traditional Vert.x code with events, but you have the opportunity to write synchronous code for complex
 workflows and use thread locals in such workflows.
 
 ### Example
 
 ```java
-VertxLoom.run(v -> {
-  // Run on a Vert.x loom thread
+Async.run(v -> {
+  // Run on a Vert.x a virtual thread
   HttpServer server = vertx.createHttpServer();
   server.handler(request -> {
     request.response().end("Hello World");
   });
-  VertxLoom.await(server.listen(8080, "localhost"));
+  Async.await(server.listen(8080, "localhost"));
   HttpClient client = vertx.createHttpClient();
-  HttpClientRequest req = loom.await(client.request(HttpMethod.GET, 8080, "localhost", "/"));
-  HttpClientResponse resp = loom.await(req.send());
+  HttpClientRequest req = Async.await(client.request(HttpMethod.GET, 8080, "localhost", "/"));
+  HttpClientResponse resp = Async.await(req.send());
   int status = resp.status();
-  Buffer body = loom.await(resp.body());
+  Buffer body = Async.await(resp.body());
 });
 ```
 
 ### What this is about
 
-Await Vert.x futures.
+Async/Await for Vert.x futures.
 
 ### What this is not about
 
@@ -104,16 +104,16 @@ Thread locals are only reliable within the execution of a context task.
 ```java
 ThreadLocal<String> local = new ThreadLocal();
 local.set(userId);
-HttpClientRequest req = loom.await(client.request(HttpMethod.GET, 8080, "localhost", "/"));
-HttpClientResponse resp = loom.await(req.send());
+HttpClientRequest req = Async.await(client.request(HttpMethod.GET, 8080, "localhost", "/"));
+HttpClientResponse resp = Async.await(req.send());
 // Thread local remains the same since it's the same virtual thread
 ```
 
 ### How it works
 
-`LoomContext` implements `io.vertx.core.Context` and runs Vert.x task on virtual threads.
+`VirtualThreadContext` implements `io.vertx.core.Context` and runs Vert.x task on virtual threads.
 
-Like other context implementations `LoomContext` serializes tasks, so that events are serialized on the virtual thread.
+Like other context implementations `VirtualThreadContext` serializes tasks, so that events are serialized on the virtual thread.
 
 When the virtual thread awaits a future, the virtual thread is parked and a new virtual thread can be started to continue handling tasks
 

@@ -1,12 +1,11 @@
-package io.vertx.loom;
+package io.vertx.await;
 
 import io.vertx.core.Context;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.core.impl.ContextInternal;
-import io.vertx.loom.core.impl.LoomContext;
+import io.vertx.await.impl.VirtualThreadContext;
 import io.vertx.core.impl.future.PromiseInternal;
-import io.vertx.loom.core.VertxLoom;
 import io.vertx.test.core.VertxTestBase;
 import org.junit.Before;
 import org.junit.Test;
@@ -14,23 +13,23 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 
-public class LoomContextTest extends VertxTestBase {
+public class VirtualThreadContextTest extends VertxTestBase {
 
-  VertxLoom loom;
+  Async async;
 
   @Before
   public void setUp() throws Exception {
     super.setUp();
-    loom = new VertxLoom(vertx);
+    async = new Async(vertx);
   }
 
   @Test
   public void testContext() {
-    loom.run(v -> {
+    async.run(v -> {
       Thread thread = Thread.currentThread();
       assertTrue(thread.isVirtual());
       Context context = vertx.getOrCreateContext();
-      assertTrue(context instanceof LoomContext);
+      assertTrue(context instanceof VirtualThreadContext);
       context.runOnContext(v2 -> {
         assertSame(thread, Thread.currentThread());
         assertSame(context, vertx.getOrCreateContext());
@@ -43,7 +42,7 @@ public class LoomContextTest extends VertxTestBase {
   @Test
   public void testAwaitFuture() {
     Object result = new Object();
-    loom.run(v -> {
+    async.run(v -> {
       ContextInternal context = (ContextInternal) vertx.getOrCreateContext();
       PromiseInternal<Object> promise = context.promise();
       new Thread(() -> {
@@ -53,7 +52,7 @@ public class LoomContextTest extends VertxTestBase {
         }
         promise.complete(result);
       }).start();
-      assertSame(result, loom.await(promise.future()));
+      assertSame(result, async.await(promise.future()));
       testComplete();
     });
     await();
@@ -62,7 +61,7 @@ public class LoomContextTest extends VertxTestBase {
   @Test
   public void testAwaitCompoundFuture() {
     Object result = new Object();
-    loom.run(v -> {
+    async.run(v -> {
       ContextInternal context = (ContextInternal) vertx.getOrCreateContext();
       PromiseInternal<Object> promise = context.promise();
       new Thread(() -> {
@@ -72,7 +71,7 @@ public class LoomContextTest extends VertxTestBase {
         }
         promise.complete(result);
       }).start();
-      assertSame("HELLO", loom.await(promise.future().map(res -> "HELLO")));
+      assertSame("HELLO", async.await(promise.future().map(res -> "HELLO")));
       testComplete();
     });
     await();
@@ -82,7 +81,7 @@ public class LoomContextTest extends VertxTestBase {
   public void testDuplicateUseSameThread() {
     int num = 1000;
     waitFor(num);
-    loom.run(v -> {
+    async.run(v -> {
       ContextInternal context = (ContextInternal) vertx.getOrCreateContext();
       Thread th = Thread.currentThread();
       for (int i = 0;i < num;i++) {
@@ -100,7 +99,7 @@ public class LoomContextTest extends VertxTestBase {
   public void testDuplicateConcurrentAwait() {
     int num = 1000;
     waitFor(num);
-    loom.run(v -> {
+    async.run(v -> {
       ContextInternal context = (ContextInternal) vertx.getOrCreateContext();
       Object lock = new Object();
       List<Promise<Void>> list = new ArrayList<>();
@@ -121,7 +120,7 @@ public class LoomContextTest extends VertxTestBase {
             });
           }
           Future<Void> f = promise.future();
-          loom.await(f);
+          async.await(f);
           complete();
         });
       }
@@ -131,13 +130,13 @@ public class LoomContextTest extends VertxTestBase {
 
   @Test
   public void testTimer() {
-    loom.run(v -> {
+    async.run(v -> {
       ContextInternal context = (ContextInternal) vertx.getOrCreateContext();
       PromiseInternal<String> promise = context.promise();
       vertx.setTimer(100, id -> {
         promise.complete("foo");
       });
-      String res = loom.await(promise);
+      String res = async.await(promise);
       assertEquals("foo", res);
       testComplete();
     });
@@ -146,7 +145,7 @@ public class LoomContextTest extends VertxTestBase {
 
   @Test
   public void testInThread() {
-    loom.run(v1 -> {
+    async.run(v1 -> {
       ContextInternal context = (ContextInternal) vertx.getOrCreateContext();
       assertTrue(context.inThread());
       new Thread(() -> {

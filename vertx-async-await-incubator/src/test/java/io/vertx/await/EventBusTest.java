@@ -1,20 +1,19 @@
-package io.vertx.loom;
+package io.vertx.await;
 
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.eventbus.Message;
-import io.vertx.loom.core.VertxLoom;
 import io.vertx.test.core.VertxTestBase;
 import org.junit.Before;
 import org.junit.Test;
 
 public class EventBusTest extends VertxTestBase {
 
-  VertxLoom loom;
+  Async async;
 
   @Before
   public void setUp() throws Exception {
     super.setUp();
-    loom = new VertxLoom(vertx);
+    async = new Async(vertx);
   }
 
   @Test
@@ -23,8 +22,8 @@ public class EventBusTest extends VertxTestBase {
     eb.consumer("test-addr", msg -> {
       msg.reply(msg.body());
     });
-    loom.run(v -> {
-      Message<String> ret = loom.await(eb.request("test-addr", "test"));
+    async.run(v -> {
+      Message<String> ret = async.await(eb.request("test-addr", "test"));
       assertEquals("test", ret.body());
       testComplete();
     });
